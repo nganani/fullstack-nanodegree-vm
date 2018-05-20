@@ -3,6 +3,7 @@ import cgi
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Restaurant, MenuItem
+import re  # regular expression package
 
 # Connect to database and create session
 engine = create_engine('sqlite:///restaurantmenu.db')
@@ -15,6 +16,7 @@ class webServerHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
+            # Add new restaurantmenu
             if self.path.endswith("/restaurants/new"):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
@@ -31,6 +33,35 @@ class webServerHandler(BaseHTTPRequestHandler):
                 self.wfile.write(output)
                 return
 
+            # Edit a restaurant name
+            if self.path.endswith("/edit"):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+
+                # Search for the restaurant ID
+                m = re.search('restaurants/(.+?)/edit', self.path)
+                if m:
+                    myID = int(m.group(1))
+                    eRest = session.query(Restaurant).filter_by(id=myID).one()
+                myAction = ('/restaurants/%d/edit' % (myID))
+                print (eRest.name)
+                output = ""
+                output += "<html><body>"
+                output += "<h1>Edit Restaurant Name</h1>"
+                output += "<form method = 'POST' enctype='multipart/form-data'"
+                output += " action = "
+                output += myAction
+                output += "> <input name = 'editRestaurantName' type = 'text'"
+                output += ' placeholder = "'
+                output += eRest.name
+                output += '"> <input type="submit" value="Update">'
+                output += "</form></body></html>"
+                print (output)
+                self.wfile.write(output)
+                return
+
+            # Show all restaurants
             if self.path.endswith("/restaurants"):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
@@ -41,10 +72,11 @@ class webServerHandler(BaseHTTPRequestHandler):
                 output += "<h1>Restaurant List:</h1>"
                 rests = session.query(Restaurant).all()
                 for rest in rests:
+                    editStr = ("/restaurants/%d/edit" % (rest.id))
                     output += "<p>"
                     output += rest.name
                     output += " "
-                    output += '''<a href="#">Edit</a>'''
+                    output += ("<a href=%s>Edit</a>" % (editStr))
                     output += " "
                     output += '''<a href="#">Delete</a> '''
                     output += "</p>"
@@ -58,6 +90,7 @@ class webServerHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            # Handle POST form action for new restaurant
             if self.path.endswith("/restaurants/new"):
                 ctype, pdict = cgi.parse_header(
                     self.headers.getheader('content-type'))
@@ -76,6 +109,32 @@ class webServerHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-type', 'text/html')
                 self.send_header('Location', '/restaurants')
                 self.end_headers()
+
+            # Handle POST action for updating restaurant name
+            if self.path.endswith("/edit"):
+                ctype, pdict = cgi.parse_header(
+                    self.headers.getheader('content-type'))
+                if ctype == 'multipart/form-data':
+                    fields = cgi.parse_multipart(self.rfile, pdict)
+                    messagecontent = fields.get('editRestaurantName')
+
+                # Create new Restaurant Object
+                # Search for the restaurant ID
+                m = re.search('restaurants/(.+?)/edit', self.path)
+                if m:
+                    myID = int(m.group(1))
+                    eRest = session.query(Restaurant).filter_by(id=myID).one()
+                print ("updated rest name: " + messagecontent[0])
+                eRest.name = messagecontent[0]
+                session.add(eRest)
+                session.commit()
+
+                # Redirect back to restaurants page
+                self.send_response(301)
+                self.send_header('Content-type', 'text/html')
+                self.send_header('Location', '/restaurants')
+                self.end_headers()
+
         except():
             pass
 
