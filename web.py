@@ -13,72 +13,71 @@ session = DBSession()
 
 class webServerHandler(BaseHTTPRequestHandler):
 
-        def do_GET(self):
-            try:
-                if self.path.endswith("/restaurants/new"):
-                    self.send_response(200)
-                    self.send_header('Content-type', 'text/html')
-                    self.end_headers()
-                    output = ""
-                    output += "<html><body>"
-                    output += "<h1>New Resteraunt Entry Form</h1>"
-                    output += '''<form method='POST' \
-                      enctype='multipart/form-data' action='/restaurants/new'>
-                      <h2>Create
-                      a new restaurant</h2><input name="restaurant_name"
-                      type="text" ><input type="submit" value="Submit">
-                      </form>'''
-                    output += "</body></html>"
-                    self.wfile.write(output)
-                    print output
-                    return
-
-                if self.path.endswith("/restaurants"):
-                    self.send_response(200)
-                    self.send_header('Content-type', 'text/html')
-                    self.end_headers()
-                    output = "<html><body>"
-                    output += '''<a href="/restaurants/new">Create a new
-                      restaurant</a>'''
-                    output += "<h1>Restaurant List:</h1>"
-                    rests = session.query(Restaurant).all()
-                    for rest in rests:
-                        output += "<p>"
-                        output += rest.name
-                        output += " "
-                        output += '''<a href="#">Edit</a>'''
-                        output += " "
-                        output += '''<a href="#">Delete</a> '''
-                        output += "</p>"
-                    output += "</body></html>"
-                    self.wfile.write(output)
-                    print output
-                    return
-
-            except IOError:
-                self.send_error(404, 'File Not Found: %s' % self.path)
-
-        def do_POST(self):
-            try:
-                self.send_response(301)
+    def do_GET(self):
+        try:
+            if self.path.endswith("/restaurants/new"):
+                self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
+                output = ""
+                output += "<html><body>"
+                output += "<h1>Make a New Restaurant</h1>"
+                output += "<form method = 'POST' enctype='multipart/form-data'"
+                output += " action = '/restaurants/new'>"
+                output += "<input name = 'newRestaurantName' type = 'text'"
+                output += " placeholder = 'New Restaurant Name' > "
+                output += "<input type='submit' value='Create'>"
+                output += "</form></body></html>"
+                self.wfile.write(output)
+                return
+
+            if self.path.endswith("/restaurants"):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                output = "<html><body>"
+                output += '''<a href="/restaurants/new">Create a new
+                  restaurant</a>'''
+                output += "<h1>Restaurant List:</h1>"
+                rests = session.query(Restaurant).all()
+                for rest in rests:
+                    output += "<p>"
+                    output += rest.name
+                    output += " "
+                    output += '''<a href="#">Edit</a>'''
+                    output += " "
+                    output += '''<a href="#">Delete</a> '''
+                    output += "</p>"
+                output += "</body></html>"
+                self.wfile.write(output)
+                print output
+                return
+
+        except IOError:
+            self.send_error(404, 'File Not Found: %s' % self.path)
+
+    def do_POST(self):
+        try:
+            if self.path.endswith("/restaurants/new"):
                 ctype, pdict = cgi.parse_header(
                     self.headers.getheader('content-type'))
                 if ctype == 'multipart/form-data':
                     fields = cgi.parse_multipart(self.rfile, pdict)
-                    messagecontent = fields.get('restaurant_name')
+                    messagecontent = fields.get('newRestaurantName')
+
+                # Create new Restaurant Object
                 print ("new rest name: " + messagecontent[0])
                 newRestaurant = Restaurant(name=messagecontent[0])
                 session.add(newRestaurant)
                 session.commit()
 
+                # Redirect back to restaurants page
                 self.send_response(301)
                 self.send_header('Content-type', 'text/html')
                 self.send_header('Location', '/restaurants')
                 self.end_headers()
-            except():
-                pass
+        except():
+            pass
 
 
 def main():
