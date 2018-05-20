@@ -61,6 +61,33 @@ class webServerHandler(BaseHTTPRequestHandler):
                 self.wfile.write(output)
                 return
 
+            # delete a restaurant
+            if self.path.endswith("/delete"):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+
+                # Search for the restaurant ID
+                m = re.search('restaurants/(.+?)/delete', self.path)
+                if m:
+                    myID = int(m.group(1))
+                    eRest = session.query(Restaurant).filter_by(id=myID).one()
+                myAction = ('/restaurants/%d/delete' % (myID))
+                print (eRest.name)
+                output = ""
+                output += "<html><body>"
+                output += "<h1>Are you sure you want to delete "
+                output += eRest.name
+                output += "?</h1>"
+                output += "<form method = 'POST' enctype='multipart/form-data'"
+                output += " action = "
+                output += myAction
+                output += '> <input type="submit" value="Yes, delete">'
+                output += "</form></body></html>"
+                print (output)
+                self.wfile.write(output)
+                return
+
             # Show all restaurants
             if self.path.endswith("/restaurants"):
                 self.send_response(200)
@@ -73,12 +100,13 @@ class webServerHandler(BaseHTTPRequestHandler):
                 rests = session.query(Restaurant).all()
                 for rest in rests:
                     editStr = ("/restaurants/%d/edit" % (rest.id))
+                    delStr = ("/restaurants/%d/delete" % (rest.id))
                     output += "<p>"
                     output += rest.name
                     output += " "
                     output += ("<a href=%s>Edit</a>" % (editStr))
                     output += " "
-                    output += '''<a href="#">Delete</a> '''
+                    output += ("<a href=%s>Delete</a>" % (delStr))
                     output += "</p>"
                 output += "</body></html>"
                 self.wfile.write(output)
@@ -127,6 +155,26 @@ class webServerHandler(BaseHTTPRequestHandler):
                 print ("updated rest name: " + messagecontent[0])
                 eRest.name = messagecontent[0]
                 session.add(eRest)
+                session.commit()
+
+                # Redirect back to restaurants page
+                self.send_response(301)
+                self.send_header('Content-type', 'text/html')
+                self.send_header('Location', '/restaurants')
+                self.end_headers()
+
+            # Handle POST action for deleting a restaurant
+            if self.path.endswith("/delete"):
+                ctype, pdict = cgi.parse_header(
+                    self.headers.getheader('content-type'))
+
+                # Search for the restaurant ID
+                m = re.search('restaurants/(.+?)/delete', self.path)
+                if m:
+                    myID = int(m.group(1))
+                    eRest = session.query(Restaurant).filter_by(id=myID).one()
+                print ("delete rest: " + eRest.name)
+                session.delete(eRest)
                 session.commit()
 
                 # Redirect back to restaurants page
