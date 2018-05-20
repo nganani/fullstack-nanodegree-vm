@@ -21,9 +21,10 @@ class webServerHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     output = ""
                     output += "<html><body>"
-                    output += "<h1>Hello!</h1>"
+                    output += "<h1>New Resteraunt Entry Form</h1>"
                     output += '''<form method='POST' \
-                      enctype='multipart/form-data' action='/hello'><h2>Create
+                      enctype='multipart/form-data' action='/restaurants/new'>
+                      <h2>Create
                       a new restaurant</h2><input name="restaurant_name"
                       type="text" ><input type="submit" value="Submit">
                       </form>'''
@@ -36,8 +37,9 @@ class webServerHandler(BaseHTTPRequestHandler):
                     self.send_response(200)
                     self.send_header('Content-type', 'text/html')
                     self.end_headers()
-                    output = ""
-                    output += "<html><body>"
+                    output = "<html><body>"
+                    output += '''<a href="/restaurants/new">Create a new
+                      restaurant</a>'''
                     output += "<h1>Restaurant List:</h1>"
                     rests = session.query(Restaurant).all()
                     for rest in rests:
@@ -66,17 +68,15 @@ class webServerHandler(BaseHTTPRequestHandler):
                 if ctype == 'multipart/form-data':
                     fields = cgi.parse_multipart(self.rfile, pdict)
                     messagecontent = fields.get('restaurant_name')
-                output = ""
-                output += "<html><body>"
-                output += " <h2> Okay, how about this: </h2>"
-                output += "<h1> %s </h1>" % messagecontent[0]
-                output += '''<form method='POST' enctype='multipart/form-data' \
-                  action='/hello'><h2>What would you like me to \
-                  say?</h2><input name="message" type="text" ><input \
-                  type="submit" value="Submit"> </form>'''
-                output += "</body></html>"
-                self.wfile.write(output)
-                print output
+                print ("new rest name: " + messagecontent[0])
+                newRestaurant = Restaurant(name=messagecontent[0])
+                session.add(newRestaurant)
+                session.commit()
+
+                self.send_response(301)
+                self.send_header('Content-type', 'text/html')
+                self.send_header('Location', '/restaurants')
+                self.end_headers()
             except():
                 pass
 

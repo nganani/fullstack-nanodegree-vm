@@ -1,59 +1,99 @@
 #!/usr/bin/env python
-# Server and HTTP Handler
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+import cgi
+
+# import CRUD Operations from Lesson 1
+from database_setup import Base, Restaurant, MenuItem
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# Create session and connect to DB
+engine = create_engine('sqlite:///restaurantmenu.db')
+Base.metadata.bind = engine
+DBSession = sessionmaker(bind=engine)
+session = DBSession()
 
 
-# HTTPRequestHandler class: handle GET, POST, other verbs
-class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
+class webServerHandler(BaseHTTPRequestHandler):
 
-    # GET
     def do_GET(self):
-        # Send response status code
-        self.send_response(200)
+        try:
+            # Objective 3 Step 2 - Create /restarants/new page
+            if self.path.endswith("/restaurants/new"):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                output = ""
+                output += "<html><body>"
+                output += "<h1>Make a New Restaurant</h1>"
+                output += "<form method = 'POST' enctype='multipart/form-data'"
+                output += " action = '/restaurants/new'>"
+                output += "<input name = 'newRestaurantName' type = 'text'"
+                output += " placeholder = 'New Restaurant Name' > "
+                output += "<input type='submit' value='Create'>"
+                output += "</form></body></html>"
+                self.wfile.write(output)
+                return
 
-        # Send headers
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
+            if self.path.endswith("/restaurants"):
+                restaurants = session.query(Restaurant).all()
+                output = ""
+                # Objective 3 Step 1 - Create a Link to create a new menu item
+                output += "<a href = '/restaurants/new' > "
+                output += "Make a New Restaurant Here </a></br></br>"
 
-        # Send message back to client
-        message = "Hello!"
-        # Write content as utf-8 data
-        self.wfile.write(bytes(message, "utf8"))
-        print (message)
-        return
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                output += "<html><body>"
+                for restaurant in restaurants:
+                    output += restaurant.name
+                    output += "</br>"
+                    # Objective 2 -- Add Edit and Delete Links
+                    output += "<a href ='#' >Edit </a> "
+                    output += "</br>"
+                    output += "<a href =' #'> Delete </a>"
+                    output += "</br></br></br>"
 
+                output += "</body></html>"
+                self.wfile.write(output)
+                return
 
-def run():
-    try:
-        print('starting server...')
+        except IOError:
+            self.send_error(404, 'File Not Found: %s' % self.path)
 
-        # Server settings
-        # Choose port 8080, for port 80, which is normally used for a http
-        #   server, you need root access
-        port = 8080
-        server_address = ('127.0.0.1', port)
-        httpd = HTTPServer(server_address, testHTTPServer_RequestHandler)
-        print('running server on localhost, port', port)
-        httpd.serve_forever()
-    # except (KeyboardInterrupt, SystemExit):
-    #     print ("^C enterened, stopping web server...")
-    #     httpd.shutdown()
-    #     raise
-    except ():
-        print ("caught an error")
+    # Objective 3 Step 3- Make POST method
+    def do_POST(self):
+        try:
+            if self.path.endswith("/restaurants/new"):
+                ctype, pdict = cgi.parse_header(
+                    self.headers.getheader('content-type'))
+                if ctype == 'multipart/form-data':
+                    fields = cgi.parse_multipart(self.rfile, pdict)
+                    messagecontent = fields.get('newRestaurantName')
+
+                    # Create new Restaurant Object
+                    newRestaurant = Restaurant(name=messagecontent[0])
+                    session.add(newRestaurant)
+                    session.commit()
+
+                    self.send_response(301)
+                    self.send_header('Content-type', 'text/html')
+                    self.send_header('Location', '/restaurants')
+                    self.end_headers()
+
+        except():
+            pass
 
 
 def main():
-    print('starting server...')
-
-    # Server settings
-    # Choose port 8080, for port 80, which is normally used for a http
-    #   server, you need root access
-    port = 8080
-    server_address = ('127.0.0.1', port)
-    httpd = HTTPServer(server_address, testHTTPServer_RequestHandler)
-    print('running server on localhost, port', port)
-    httpd.serve_forever()
+    try:
+        server = HTTPServer(('', 8080), webServerHandler)
+        print 'Web server running. Open localhost:8080/restaurants in browser'
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print '^C received, shutting down server'
+        server.socket.close()
 
 
 if __name__ == '__main__':
